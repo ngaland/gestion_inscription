@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/gestin_inscription.iml" filepath="$PROJECT_DIR$/.idea/gestin_inscription.iml" />
+      <module fileurl="file://$PROJECT_DIR$/gestin_inscription/gestin_inscription.iml" filepath="$PROJECT_DIR$/gestin_inscription/gestin_inscription.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/gestion_inscription.iml" filepath="$PROJECT_DIR$/.idea/gestion_inscription.iml" />
     </modules>
   </component>
 </project>
