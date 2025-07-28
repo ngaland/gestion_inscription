@@ -1,0 +1,87 @@
+# Gestion des inscriptions - Configuration de l'application
+spring:
+
+  springdoc:
+    swagger-ui:
+      path: /swagger-ui.html
+
+  application:
+    name: gestion_inscription
+
+  profiles:
+    active: ${ACTIVE_PROFILE:dev}
+
+
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_SQL_HOST}:${POSTGRES_SQL_PORT}/${POSTGRES_SQL_DB}
+    username: ${POSTGRES_SQL_USERNAME}
+    password: ${POSTGRES_SQL_PASSWORD}
+
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database: postgresql
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    username: ${SMTP_USER}
+    password: ${SMTP_PASSWORD}
+
+    properties:
+      mail:
+        mine:
+          charset: UTF
+        smtp:
+          writetimeout: 10000
+          connectiontimeout: 10000
+          timeout: 10000
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            trust: ${SMTP_SSL_TRUST}
+    verify:
+      host: ${VERIFY_EMAIL_HOSt}
+
+
+# WebSocket Configuration
+#spring.websocket.allowed-origins=*
+server:
+  port: ${SERVER_PORT}
+
+
+# Planification des rappels
+app:
+  notification:
+    reminder-time: "09:00"
+
+
+# logging sql
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: debug
+
+
+
+        type:
+          descriptor:
+            sql:
+              BasicBinder: trace
+
+
+# Configuration JWT
+jwt:
+  secret:
+    key: F06PBJ6GzaTRCyiAycvwVHn0Mkgi9ztGpl6DIkULwtDcJ2y17uDwYS0XdrNjIIfWKAvWPoyAwBLHvHKnDzzPmmXWEpaRbWVG8zGkIViUWumw64U6nGOE2d5a7Zb9sQaOrmYfxCHTbPinjbSOoMuSJhk793ewS3COygGtNoAKjGZgiwzlWpIgAYDxTDHzJAL6gp8YEuxmq5CpovVtTm6V4hvEf3kA7zBmjWctjTULcXlQ2VjfhH6WI48lJ5gqBZWl
+  expiration: 86400000           # 3600000 : Durée de validité du token en millisecondes (ex: 1 heure)

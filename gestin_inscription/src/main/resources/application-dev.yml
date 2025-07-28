@@ -1,0 +1,18 @@
+#database
+POSTGRES_SQL_HOST: localhost
+POSTGRES_SQL_PORT: 5432
+POSTGRES_SQL_DB: gestion_inscription
+POSTGRES_SQL_USERNAME: hels
+POSTGRES_SQL_PASSWORD: hels
+
+#SERVER
+ACTIVE_PROFILE: dev
+SERVER_PORT: 8080
+
+
+SMTP_HOST: smtp.gmail.com
+SMTP_PORT: 587
+SMTP_USER: m7hels@gmail.com
+SMTP_PASSWORD: rssn mtuw blbk qara
+SMTP_SSL_TRUST: smtp.gmail.com
+VERIFY_EMAIL_HOST: http://localhost:${SERVER_PORT}
