@@ -1,0 +1,114 @@
+package com.groupe.gestin_inscription.controller;
+
+import com.groupe.gestin_inscription.dto.request.DocumentUploadRequestDTO;
+import com.groupe.gestin_inscription.dto.response.DocumentResponseDTO;
+import com.groupe.gestin_inscription.model.Administrator;
+import com.groupe.gestin_inscription.model.Document;
+import com.groupe.gestin_inscription.repository.AdministratorRepository;
+import com.groupe.gestin_inscription.services.serviceImpl.DocumentServiceImpl;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/documents")
+@Tag(name = "Document Management", description = "Endpoints for handling document uploads and validation")
+public class DocumentController {
+
+    @Autowired
+    private DocumentServiceImpl documentService;
+    @Autowired
+    private AdministratorRepository administratorRepository;
+
+    @Operation(summary = "Upload a document for an application")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Document uploaded successfully",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = DocumentResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid file or validation error"),
+            @ApiResponse(responseCode = "403", description = "Forbidden access")
+    })
+    @PostMapping("/upload/{applicationId}")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<DocumentResponseDTO> uploadDocument(
+            @PathVariable Long applicationId,
+            @RequestPart("documentType") String documentType,
+            @RequestPart("file") MultipartFile file) {
+
+        DocumentUploadRequestDTO docDTO = new DocumentUploadRequestDTO();
+        docDTO.setDocumentType(documentType);
+        docDTO.setFileContent(file);
+
+        Document uploadedDocument = documentService.uploadDocument(applicationId, docDTO);
+        return ResponseEntity.ok(convertToDto(uploadedDocument));
+    }
+
+    @Operation(summary = "Manually validate a document by an agent")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Document validated successfully"),
+            @ApiResponse(responseCode = "403", description = "Forbidden access"),
+            @ApiResponse(responseCode = "404", description = "Document not found")
+    })
+    @PostMapping("/validate/{documentId}")
+    @PreAuthorize("hasRole('AGENT')")
+    public ResponseEntity<Void> validateDocument(@PathVariable Long documentId) {
+        // Get the authenticated user's details from the security context
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String adminEmail;
+
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            adminEmail = userDetails.getUsername();
+        } else {
+            throw new IllegalStateException("Authentication principal not found or is not a UserDetails instance.");
+        }
+
+        // Finding the administrator's ID using their email
+        Administrator adminUser = administratorRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("Admin not found with email: " + adminEmail));
+
+        Long adminId = adminUser.getId();
+
+        // Passing the retrieved adminId to the service layer for object-level security checks
+        documentService.manualValidation(documentId, adminId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "Get a list of all documents for a specific application")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Documents retrieved successfully",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = List.class))),
+            @ApiResponse(responseCode = "403", description = "Forbidden access")
+    })
+    @GetMapping("/application/{applicationId}")
+    @PreAuthorize("hasRole('AGENT') or hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<DocumentResponseDTO>> getDocumentsByApplication(@PathVariable Long applicationId) {
+        List<Document> documents = documentService.getDocumentsByApplicationId(applicationId);
+        return ResponseEntity.ok(documents.stream().map(this::convertToDto).toList());
+    }
+
+    // This method converts a Document entity to a DocumentResponseDTO
+    private DocumentResponseDTO convertToDto(Document document) {
+        DocumentResponseDTO dto = new DocumentResponseDTO();
+        dto.setId(document.getId());
+        dto.setName(document.getName());
+        dto.setFileType(document.getFileType());
+        dto.setValidationStatus(document.getValidationStatus().name());
+        dto.setOcrNotes(document.getOcrNotes());
+        return dto;
+    }
+}
