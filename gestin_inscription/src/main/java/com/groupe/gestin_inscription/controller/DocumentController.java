@@ -67,18 +67,18 @@ public class DocumentController {
     public ResponseEntity<Void> validateDocument(@PathVariable Long documentId) {
         // Get the authenticated user's details from the security context
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String adminEmail;
+        String adminUsername;
 
         if (authentication != null && authentication.getPrincipal() instanceof UserDetails) {
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            adminEmail = userDetails.getUsername();
+            adminUsername = userDetails.getUsername();
         } else {
             throw new IllegalStateException("Authentication principal not found or is not a UserDetails instance.");
         }
 
-        // Finding the administrator's ID using their email
-        Administrator adminUser = administratorRepository.findByEmail(adminEmail)
-                .orElseThrow(() -> new UsernameNotFoundException("Admin not found with email: " + adminEmail));
+        // Finding the administrator's ID using their username (not email)
+        Administrator adminUser = administratorRepository.findByUserName(adminUsername)
+                .orElseThrow(() -> new UsernameNotFoundException("Admin not found with username: " + adminUsername));
 
         Long adminId = adminUser.getId();
 

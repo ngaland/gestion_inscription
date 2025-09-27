@@ -22,32 +22,44 @@ import java.util.stream.Collectors;
 
 
 @Service
-@RequiredArgsConstructor // Lombok annotation for constructor injection
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder; // Injected from security config
+    private final PasswordEncoder passwordEncoder;
     private final AcademicHistoryRepository academicHistoryRepository;
-//-----------------------------------------------------------------------------------------------------
-
 
     @Override
+    @Transactional
     public UserResponseDTO createUser(UserRequestDTO userRequestDTO) {
+        // Check if username or email already exists
+        if (userRepository.existsByUsername(userRequestDTO.getUsername())) {
+            throw new IllegalArgumentException("Username already exists: " + userRequestDTO.getUsername());
+        }
+        if (userRepository.existsByEmail(userRequestDTO.getEmail())) {
+            throw new IllegalArgumentException("Email already exists: " + userRequestDTO.getEmail());
+        }
+
         User user = mapToUserEntity(userRequestDTO);
         AcademicHistory academicHistory = mapToAcademicHistoryEntity(userRequestDTO.getAcademicHistory());
 
         user.setAcademicHistory(academicHistory);
-        User savedUser = userRepository.save(user);
 
+        // Hash the password before saving
+        if (userRequestDTO.getPassword() != null && !userRequestDTO.getPassword().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
+        }
+
+        User savedUser = userRepository.save(user);
         return mapToUserResponseDTO(savedUser);
     }
 
-    @Transactional(readOnly = true) // Read-only for performance optimization
-    public Optional <UserResponseDTO> findById(Long id) {
+    @Transactional(readOnly = true)
+    public Optional<UserResponseDTO> findById(Long id) {
         Optional<User> userOptional = userRepository.findById(id);
-        if(userOptional.isPresent()){
+        if (userOptional.isPresent()) {
             return userOptional.map(this::mapToResponse);
-        }else{
+        } else {
             throw new NoSuchElementException("User not found with id: " + id);
         }
     }
@@ -56,21 +68,21 @@ public class UserServiceImpl implements UserService {
     @Override
     public Optional<UserResponseDTO> findByUsername(String username) {
         Optional<User> userOptional = userRepository.findByUsername(username);
-        if(userOptional.isPresent()){
+        if (userOptional.isPresent()) {
             return userOptional.map(this::mapToResponse);
-        }else {
-            throw new NoSuchElementException(" No User found with Username: " + username);
+        } else {
+            throw new NoSuchElementException("No User found with Username: " + username);
         }
     }
 
     @Transactional(readOnly = true)
     @Override
-    public Optional<UserResponseDTO> findByEmail( String email){
+    public Optional<UserResponseDTO> findByEmail(String email) {
         Optional<User> userOptional = userRepository.findByEmail(email);
-        if(userOptional.isPresent()){
+        if (userOptional.isPresent()) {
             return userOptional.map(this::mapToResponse);
-        }else {
-            throw new NoSuchElementException("No User found with the Email: " + email );
+        } else {
+            throw new NoSuchElementException("No User found with the Email: " + email);
         }
     }
 
@@ -101,7 +113,7 @@ public class UserServiceImpl implements UserService {
             }
             concernedUser.setEmail(request.getEmail());
         }
-        if (request.getPassword() != null) {
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             concernedUser.setPassword(passwordEncoder.encode(request.getPassword()));
         }
         if (request.getFirstName() != null) {
@@ -124,7 +136,7 @@ public class UserServiceImpl implements UserService {
         userRepository.deleteById(id);
     }
 
-    // --- Helper method for mapping ---
+    // Helper method for mapping
     private UserResponseDTO mapToResponse(User user) {
         return new UserResponseDTO(
                 user.getId(),
@@ -133,23 +145,26 @@ public class UserServiceImpl implements UserService {
                 user.getLastName(),
                 user.getEmail(),
                 user.getAdministratorRole()
-                );
+        );
     }
 
     /**
      * Helper method to map a UserRequestDTO to a User entity.
-     * @param dto The UserRequestDTO to be mapped.
-     * @return The resulting User entity.
      */
     private User mapToUserEntity(UserRequestDTO dto) {
         if (dto == null) {
             return null;
         }
         User user = new User();
+        user.setUsername(dto.getUsername()); // Add this line
         user.setFirstName(dto.getFirstName());
         user.setLastName(dto.getLastName());
-        user.setGender(Gender.valueOf(dto.getGender().toUpperCase()));
-        user.setDateOfBirth(LocalDate.parse(dto.getDateOfBirth())); // Assuming YYYY-MM-DD format
+        if (dto.getGender() != null) {
+            user.setGender(Gender.valueOf(dto.getGender().toUpperCase()));
+        }
+        if (dto.getDateOfBirth() != null) {
+            user.setDateOfBirth(LocalDate.parse(dto.getDateOfBirth()));
+        }
         user.setNationality(dto.getNationality());
         user.setEmail(dto.getEmail());
         user.setPhoneNumber(dto.getPhoneNumber());
@@ -160,8 +175,6 @@ public class UserServiceImpl implements UserService {
 
     /**
      * Helper method to map a User's academic history from the DTO to an AcademicHistory entity.
-     * @param dto The UserRequestDTO to be mapped.
-     * @return The resulting AcademicHistory entity.
      */
     private AcademicHistory mapToAcademicHistoryEntity(AcademicHistoryRequestDTO dto) {
         if (dto == null) {
@@ -170,15 +183,17 @@ public class UserServiceImpl implements UserService {
         AcademicHistory academicHistory = new AcademicHistory();
         academicHistory.setLastInstitution(dto.getLastInstitution());
         academicHistory.setSpecialization(dto.getSpecialization());
-        academicHistory.setStartDate(LocalDate.parse(dto.getFormationPeriodStart()));
-        academicHistory.setEndDate(LocalDate.parse(dto.getFormationPeriodEnd()));
+        if (dto.getFormationPeriodStart() != null) {
+            academicHistory.setStartDate(LocalDate.parse(dto.getFormationPeriodStart()));
+        }
+        if (dto.getFormationPeriodEnd() != null) {
+            academicHistory.setEndDate(LocalDate.parse(dto.getFormationPeriodEnd()));
+        }
         return academicHistoryRepository.save(academicHistory);
     }
 
     /**
      * Helper method to map a User entity to a UserResponseDTO.
-     * @param user The User entity to be mapped.
-     * @return The resulting UserResponseDTO.
      */
     private UserResponseDTO mapToUserResponseDTO(User user) {
         if (user == null) {
@@ -186,6 +201,7 @@ public class UserServiceImpl implements UserService {
         }
         UserResponseDTO dto = new UserResponseDTO();
         dto.setId(user.getId());
+        dto.setUsername(user.getUsername()); // Add this line
         dto.setFirstName(user.getFirstName());
         dto.setLastName(user.getLastName());
         dto.setEmail(user.getEmail());

@@ -12,33 +12,48 @@ import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Component
 public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final AdministratorRepository administratorRepository;
+    private final UserRepository userRepository;
 
-    public UserDetailsServiceImpl(AdministratorRepository administratorRepository) {
-
+    public UserDetailsServiceImpl(AdministratorRepository administratorRepository,
+                                  UserRepository userRepository) {
         this.administratorRepository = administratorRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Administrator user = administratorRepository.findByUserName(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
 
-        // Create GrantedAuthorities from the user's role
-        //Collection<? extends GrantedAuthority> authorities =
-        //        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+        // finding an admin first
+        Optional<Administrator> adminOptional = administratorRepository.findByUserName(username);
+        if (adminOptional.isPresent()) {
+            Administrator admin = adminOptional.get();
+            return org.springframework.security.core.userdetails.User.builder()
+                    .username(admin.getUserName())
+                    .password(admin.getPassword())
+                    .authorities(List.of(new SimpleGrantedAuthority("ROLE_" + admin.getRole().name())))
+                    .build();
+        }
 
-        // Building Spring Security's UserDetails object from your User entity
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getUserName())
-                .password(user.getPassword()) // This is the HASHED password from DB
-                .authorities(List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))) // Map your Role enum to SimpleGrantedAuthority
-                .build();
+        // instead, finding a normal user
+        Optional<User> userOptional = userRepository.findByUsername(username);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            return org.springframework.security.core.userdetails.User.builder()
+                    .username(user.getUsername())
+                    .password(user.getPassword())
+                    // a regular user has the CANDIDATE default ROLE
+                    .authorities(List.of(new SimpleGrantedAuthority("ROLE_CANDIDATE")))
+                    .build();
+        }
 
+        // if no user is found
+        throw new UsernameNotFoundException("User not found with username: " + username);
     }
 }

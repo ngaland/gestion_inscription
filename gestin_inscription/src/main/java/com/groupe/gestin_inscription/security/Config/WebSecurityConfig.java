@@ -29,7 +29,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // Enables @PreAuthorize, @PostAuthorize, @Secured, @RolesAllowed
+@EnableMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsServiceImpl;
@@ -60,21 +60,18 @@ public class WebSecurityConfig {
         return authConfig.getAuthenticationManager();
     }
 
-
     @Bean
     public PasswordEncoder passwordEncoder() {
-
         return new BCryptPasswordEncoder();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allow your Angular frontend's origin
-        configuration.setAllowedOrigins(List.of("http://localhost:4300")); // Adjust for your frontend URL
+        configuration.setAllowedOrigins(List.of("http://localhost:4300"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*")); // for all headers Authorization
-        configuration.setAllowCredentials(true); // for credentials (cookies, auth headers) sending
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
@@ -82,19 +79,38 @@ public class WebSecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(AbstractHttpConfigurer::disable) // Disable CSRF for Stateless REST APIs
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
+        http.csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Use Stateless sessions for JWT
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        // Public endpoints for authentication and Swagger UI
-                        .requestMatchers("/api/auth/**").permitAll()
+                        // Endpoints publics (pas d'authentification requise)
+                        .requestMatchers("/api/auth/**", "/api/users", "/api/users/").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        // Define access based on roles for other APIs
+
+                        // Endpoints pour les SUPER_ADMIN
                         .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
-                        .requestMatchers("/api/teacher/**").hasAnyRole("TEACHER", "ADMIN")
-                        .requestMatchers("/api/student/**").hasAnyRole("STUDENT", "TEACHER", "ADMIN")
-                        .anyRequest().authenticated() // All other requests require authentication
+                        .requestMatchers("/api/analytics/**").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/users/all").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/users/{id}").hasAnyRole("AGENT", "SUPER_ADMIN", "CANDIDATE")
+                        .requestMatchers("/api/users/username/{username}").hasAnyRole("AGENT", "SUPER_ADMIN", "CANDIDATE")
+
+                        // Endpoints pour les AGENT
+                        .requestMatchers("/api/applications/review/**").hasRole("AGENT")
+                        .requestMatchers("/api/applications/all").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/documents/validate/**").hasRole("AGENT")
+                        .requestMatchers("/api/documents/application/**").hasAnyRole("AGENT", "SUPER_ADMIN")
+
+                        // Endpoints pour les CANDIDATE
+                        .requestMatchers("/api/applications/submit").hasRole("CANDIDATE")
+                        .requestMatchers("/api/applications/status/**").hasRole("CANDIDATE")
+                        .requestMatchers("/api/documents/upload/**").hasRole("CANDIDATE")
+
+                        // Endpoints PUT/DELETE avec contrôle d'objet
+                        .requestMatchers("/api/users/{id}").hasRole("CANDIDATE")
+
+                        // Tous les autres endpoints nécessitent une authentification
+                        .anyRequest().authenticated()
                 );
 
         http.authenticationProvider(authenticationProvider());

@@ -13,6 +13,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.mail.MessagingException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -41,12 +43,29 @@ public class ApplicationController {
     }
 
     // Endpoint for applicants to check their application status
-    @Operation(summary = "Get application details by it's status")
+    @Operation(summary = "Get applications by status for the current user")
     @GetMapping("/status/{status}")
-    @PreAuthorize("isAuthenticated() and @objectLevelSecurity.isOwner(#applicationId, principal)")
-    public ResponseEntity<Optional<ApplicationStatusResponseDto>> getApplicationStatus(@PathVariable ApplicationStatus status) {
-        Application application = (Application) applicationServiceImpl.getApplicationsByStatus(status);
-        return ResponseEntity.ok(Optional.of(convertToDto(application)));
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<List<ApplicationStatusResponseDto>> getApplicationsByStatus(
+            @PathVariable ApplicationStatus status) {
+
+        // Get current authenticated user
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+
+        List<Application> applications = applicationServiceImpl.getApplicationsByStatus(status);
+
+        // Filter applications for the current user only
+        List<Application> userApplications = applications.stream()
+                .filter(app -> app.getApplicantName() != null &&
+                        currentUsername.equals(app.getApplicantName().getUsername()))
+                .collect(Collectors.toList());
+
+        List<ApplicationStatusResponseDto> responseDtos = userApplications.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(responseDtos);
     }
 
     // Endpoint for an agent to manually review an application
