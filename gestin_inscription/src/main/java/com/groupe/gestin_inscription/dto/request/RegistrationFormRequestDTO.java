@@ -18,7 +18,6 @@ public class RegistrationFormRequestDTO {
     private String gender;
     private LocalDate dateOfBirth;
     private String nationality;
-    private String idType;
     private String username;
 
     // Section 2: Academic History

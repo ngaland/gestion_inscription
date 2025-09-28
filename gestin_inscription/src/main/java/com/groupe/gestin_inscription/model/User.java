@@ -3,6 +3,7 @@ package com.groupe.gestin_inscription.model;
 
 import com.groupe.gestin_inscription.model.Enums.AdministratorRole;
 import com.groupe.gestin_inscription.model.Enums.Gender;
+import com.groupe.gestin_inscription.model.Enums.UserRole;
 import jakarta.validation.constraints.Past;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -38,8 +39,9 @@ public class User {
     private String emergencyContact;
 
     // Contact Information
-    @Enumerated(EnumType.STRING)
-    private AdministratorRole administratorRole;
+    @Enumerated(EnumType.STRING) // 👈 This is CRITICAL
+    @Column(name = "role")       // 👈 Ensure the column name is correct
+    private UserRole role;
     private String email;
     private String phoneNumber;
     private String address;

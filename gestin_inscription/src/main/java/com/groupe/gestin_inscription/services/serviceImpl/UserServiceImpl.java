@@ -6,6 +6,7 @@ import com.groupe.gestin_inscription.dto.request.UserRequestDTO;
 import com.groupe.gestin_inscription.dto.response.UserResponseDTO;
 import com.groupe.gestin_inscription.model.*;
 import com.groupe.gestin_inscription.model.Enums.Gender;
+import com.groupe.gestin_inscription.model.Enums.UserRole;
 import com.groupe.gestin_inscription.repository.*;
 import com.groupe.gestin_inscription.services.serviceInterfaces.*;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,7 @@ public class UserServiceImpl implements UserService {
         AcademicHistory academicHistory = mapToAcademicHistoryEntity(userRequestDTO.getAcademicHistory());
 
         user.setAcademicHistory(academicHistory);
+        user.setRole(UserRole.CANDIDATE);
 
         // Hash the password before saving
         if (userRequestDTO.getPassword() != null && !userRequestDTO.getPassword().isEmpty()) {
@@ -144,7 +146,7 @@ public class UserServiceImpl implements UserService {
                 user.getFirstName(),
                 user.getLastName(),
                 user.getEmail(),
-                user.getAdministratorRole()
+                user.getRole()
         );
     }
 

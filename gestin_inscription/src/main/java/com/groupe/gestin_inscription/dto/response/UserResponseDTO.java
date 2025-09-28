@@ -1,6 +1,7 @@
 package com.groupe.gestin_inscription.dto.response;
 
 import com.groupe.gestin_inscription.model.Enums.AdministratorRole;
+import com.groupe.gestin_inscription.model.Enums.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,22 +16,22 @@ public class UserResponseDTO {
     private String lastName;
     private String username;
     private String email;
-    private AdministratorRole AdministratorRole;
     private String phoneNumber;
     private String address;
+    private UserRole Role;
 
     public UserResponseDTO(Long id,
                            String username,
                            String firstName,
                            String lastName,
                            String email,
-                           AdministratorRole administratorRole) {
+                           UserRole Role) {
         this.id=id;
         this.username=username;
         this.firstName=firstName;
         this.lastName=lastName;
         this.email=email;
-        this.AdministratorRole=administratorRole;
+        this.Role=Role;
 
     }
     // Getters and Setters

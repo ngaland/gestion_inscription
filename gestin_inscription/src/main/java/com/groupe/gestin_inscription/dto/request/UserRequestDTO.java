@@ -3,6 +3,7 @@ package com.groupe.gestin_inscription.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.groupe.gestin_inscription.model.AcademicHistory;
+import com.groupe.gestin_inscription.model.Enums.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +23,7 @@ public class UserRequestDTO {
     private String phoneNumber;
     private String address;
     private String emergencyContact;
+    private String Role;
 
     @JsonProperty("academicHistory")
     private AcademicHistoryRequestDTO academicHistory;

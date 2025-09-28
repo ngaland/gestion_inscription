@@ -122,7 +122,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         // Get all agents
         List<Administrator> agents = administratorRepository.findByRole(AdministratorRole.AGENT);
         if (agents.isEmpty()) {
-            // Handle case with no agents
+            System.err.println("CRITICAL: No ADMINISTRATOR with the AGENT role found for assignment.");
             return;
         }
 
@@ -130,7 +130,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         Random random = new Random();
         Administrator agent = agents.get(random.nextInt(agents.size()));
 
-        // You would typically link the application to the agent here
+        System.out.println("Assigning application " + application.getId() + " to agent: " + agent.getUserName());
+
+        // link the application to the agent and save
         application.setAssignedAdmin(agent);
         applicationRepository.save(application);
 
@@ -171,22 +173,35 @@ public class ApplicationServiceImpl implements ApplicationService {
      * Handles the online appeal process for a rejected application.
      */
     public void handleRecourse(Long applicationId, String recourseType) {
-        Application application = applicationRepository.findById(applicationId).orElseThrow(() -> new EntityNotFoundException("Application not found."));
+        Application application = applicationRepository.findById(applicationId)
+                .orElseThrow(() -> new EntityNotFoundException("Application not found."));
 
         if (application.getStatus() != ApplicationStatus.REJECTED) {
             throw new IllegalStateException("Recourse is only possible for rejected applications.");
         }
 
         if ("appointment".equalsIgnoreCase(recourseType)) {
-            // Logic for virtual appointment scheduling [cite: 76]
+            //Update application status (optional: to "PENDING_RECOURSE")
+            application.setStatus(ApplicationStatus.PENDING_RECOURSE);
+            applicationRepository.save(application);
             try {
-                notificationService.sendEmailNotification(application.getApplicantName().getEmail(), "Prise de rendez-vous", "Prenez un rendez-vous virtuel avec l'administration.");
+                notificationService.sendEmailNotification(application.getApplicantName()
+                        .getEmail(), "Prise de rendez-vous", "Prenez un rendez-vous virtuel avec l'administration.");
             } catch (MessagingException e) {
                 throw new RuntimeException(e);
             }
         } else if ("chat".equalsIgnoreCase(recourseType)) {
-            // Logic for chat with administration [cite: 77]
-            // ... enable chat functionality
+            // Logic for chat with administration
+
+            // 1. Get the Applicant's User ID
+            Long applicantUserId = application.getApplicantName().getId();
+
+            // 2. Define the in-app message
+            String chatMessage = "Votre demande de recours par chat a été enregistrée. Un agent de l'administration sera notifié pour démarrer une session de chat en direct. Veuillez rester attentif à vos notifications in-app.";
+
+            // 3. Send the in-app notification
+            notificationService.sendInAppNotification(applicantUserId, chatMessage);
+
         } else {
             throw new IllegalArgumentException("Invalid recourse type.");
         }
