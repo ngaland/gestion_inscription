@@ -29,7 +29,6 @@ public class User {
     private String password;
     @Column(unique = true, nullable = false)
     private String username;
-    private String userIdNum;
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
@@ -39,8 +38,8 @@ public class User {
     private String emergencyContact;
 
     // Contact Information
-    @Enumerated(EnumType.STRING) // 👈 This is CRITICAL
-    @Column(name = "role")       // 👈 Ensure the column name is correct
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role")
     private UserRole role;
     private String email;
     private String phoneNumber;

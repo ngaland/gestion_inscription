@@ -2,6 +2,7 @@ package com.groupe.gestin_inscription.repository;
 
 import com.groupe.gestin_inscription.model.Application;
 import com.groupe.gestin_inscription.model.Enums.ApplicationStatus;
+import com.groupe.gestin_inscription.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,13 +14,8 @@ import java.util.Map;
 
 @Repository
 public interface ApplicationRepository extends JpaRepository<Application, Long> {
-    // Custom query methods can be added here if needed,
-    /**
-     * Finds all applications with a specific status.
-     *
-     * @param status The status of the applications to find.
-     * @return A list of applications matching the status.
-     */
+
+
     List findByStatus(ApplicationStatus status);
 
     /**
@@ -42,4 +38,6 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     //Map<String, Integer> countApplicationsByStage();
 
     List<Application> findByCompletionRateGreaterThanEqual(double rate);
+
+    List<Application> findByApplicantName(User user);
 }

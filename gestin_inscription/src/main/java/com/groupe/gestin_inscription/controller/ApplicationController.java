@@ -11,6 +11,7 @@ import com.groupe.gestin_inscription.services.serviceImpl.ApplicationServiceImpl
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.mail.MessagingException;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -33,12 +34,25 @@ public class ApplicationController {
     @Autowired
     private ObjectLevelSecurity objectLevelSecurity;
 
-    // Endpoint for applicants to submit a new application
-    @Operation(summary = "Submit a new application")
-    @PostMapping("/submit")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApplicationStatusResponseDto> submitApplication(@RequestBody RegistrationFormRequestDTO registrationFormRequestDTO, List<DocumentUploadRequestDTO> documentUploadRequestDTO) throws MessagingException, IOException {
-        Application newApplication = applicationServiceImpl.createApplication(registrationFormRequestDTO, documentUploadRequestDTO);
+    // Endpoint for applicants to submit a new application using their existing profile
+    @Operation(summary = "Submit a new application using existing user profile")
+    @PostMapping(value = "/submit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<ApplicationStatusResponseDto> submitApplication(
+            // Accepts multiple files and their associated metadata directly
+            @RequestPart("documents") List<DocumentUploadRequestDTO> documentsDTOs)
+            throws MessagingException, IOException {
+
+        // Get current authenticated user
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+
+        // Create application using existing user profile
+        Application newApplication = applicationServiceImpl.createApplicationFromExistingUser(
+                currentUsername,
+                documentsDTOs
+        );
+
         return ResponseEntity.ok(convertToDto(newApplication));
     }
 
@@ -101,7 +115,6 @@ public class ApplicationController {
         // Populate applicant information
         User applicant = application.getApplicantName();
         if (applicant != null) {
-            dto.setUserIdNum(applicant.getUserIdNum());
             dto.setUsername(applicant.getUsername());
             dto.setApplicantName(applicant.getFirstName() + " " + applicant.getLastName());
         }

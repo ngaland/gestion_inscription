@@ -41,12 +41,58 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Autowired
     private DocumentManagerService documentManagerService;
 
+
+    // Nouvelle méthode qui utilise le profil utilisateur existant
+    @Transactional
+    public Application createApplicationFromExistingUser(String username, List<DocumentUploadRequestDTO> documents)
+            throws MessagingException {
+
+        // 1. retrieve the existing user
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("User not found with username: " + username));
+
+        // 2. Verify if there is an existing application for the current user
+        List<Application> existingApplications = applicationRepository.findByApplicantName(user);
+        boolean hasActiveApplication = existingApplications.stream()
+                .anyMatch(app -> app.getStatus() == ApplicationStatus.PRE_VALIDATION ||
+                        app.getStatus() == ApplicationStatus.MANUAL_REVIEW);
+
+        if (hasActiveApplication) {
+            throw new IllegalStateException("User already has an active application. Please wait for it to be processed.");
+        }
+
+        // 3. Create a new application with the existing profile infos
+        Application application = new Application();
+        application.setApplicantName(user);
+        application.setCompletionRate(calculateCompletionRateFromExistingUser(user, documents));
+        application.setSubmissionDate(LocalDateTime.now());
+        application.setStatus(ApplicationStatus.PRE_VALIDATION);
+
+        // Save the application
+        application = applicationRepository.save(application);
+
+        // 4. manage uploaded documents
+        for (DocumentUploadRequestDTO docDTO : documents) {
+            documentService.uploadDocument(application.getId(), docDTO);
+        }
+
+        // 5. perform automatic pre-validation and notifications
+        performPreValidation(application);
+        notificationService.sendEmailNotification(
+                user.getEmail(),
+                "Candidature soumise",
+                "Votre candidature a été reçue et est en cours de traitement."
+        );
+
+        return application;
+    }
+
     // Creates a new application from user data and documents
     @Override
     public Application createApplication(RegistrationFormRequestDTO registrationForm, List<DocumentUploadRequestDTO> documents) throws MessagingException {
-        // Step 1: Find the existing user by ID.
+        // Step 1: Find the existing user by username.
         User user = userRepository.findByUsername(registrationForm.getUsername())
-                .orElseThrow(() -> new NoSuchElementException("User not found with ID: " + registrationForm.getUsername()));
+                .orElseThrow(() -> new NoSuchElementException("User not found with Username: " + registrationForm.getUsername()));
 
         // Step 2: Create a new Application entity associated with the retrieved user.
         Application application = new Application();
@@ -67,6 +113,50 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         return application;
     }
+
+    // computing the completionRate based on the existing user profile
+    private double calculateCompletionRateFromExistingUser(User user, List<DocumentUploadRequestDTO> documents) {
+        double completionRate = 0.0;
+        double totalWeight = 100.0;
+
+        // Verify profil infos (60% du total)
+        double profileWeight = 60.0;
+        double profileScore = 0.0;
+
+        if (user.getFirstName() != null && !user.getFirstName().trim().isEmpty()) profileScore += 10;
+        if (user.getLastName() != null && !user.getLastName().trim().isEmpty()) profileScore += 10;
+        if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) profileScore += 10;
+        if (user.getDateOfBirth() != null) profileScore += 10;
+        if (user.getNationality() != null && !user.getNationality().trim().isEmpty()) profileScore += 5;
+        if (user.getPhoneNumber() != null && !user.getPhoneNumber().trim().isEmpty()) profileScore += 5;
+        if (user.getAddress() != null && !user.getAddress().trim().isEmpty()) profileScore += 5;
+        if (user.getEmergencyContact() != null && !user.getEmergencyContact().trim().isEmpty()) profileScore += 5;
+
+        completionRate += (profileScore / 60.0) * profileWeight;
+
+        // verify academic history (20% du total)
+        double academicWeight = 20.0;
+        if (user.getAcademicHistory() != null) {
+            double academicScore = 0.0;
+            if (user.getAcademicHistory().getLastInstitution() != null) academicScore += 10;
+            if (user.getAcademicHistory().getSpecialization() != null) academicScore += 5;
+            if (user.getAcademicHistory().getStartDate() != null) academicScore += 2.5;
+            if (user.getAcademicHistory().getEndDate() != null) academicScore += 2.5;
+
+            completionRate += (academicScore / 20.0) * academicWeight;
+        }
+
+        // verify documents (20% du total)
+        double documentsWeight = 20.0;
+        if (documents != null && !documents.isEmpty()) {
+            // Score basé sur le nombre de documents fournis (estimation)
+            double documentScore = Math.min(documents.size() * 5.0, 20.0);
+            completionRate += (documentScore / 20.0) * documentsWeight;
+        }
+
+        return Math.min(completionRate, 100.0);
+    }
+
 
     // Retrieves an application by its ID
     public Application getApplicationById(Long applicationId) {
