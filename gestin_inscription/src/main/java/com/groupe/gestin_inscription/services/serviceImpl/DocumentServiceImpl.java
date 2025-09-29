@@ -8,13 +8,17 @@ import com.groupe.gestin_inscription.model.Enums.ValidationStatus;
 import com.groupe.gestin_inscription.repository.ApplicationRepository;
 import com.groupe.gestin_inscription.repository.DocumentRepository;
 import com.groupe.gestin_inscription.services.serviceInterfaces.DocumentService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+
 import java.io.IOException;
 import java.util.List;
 
+
+@Slf4j
 @Service
 public class DocumentServiceImpl implements DocumentService {
     @Autowired
@@ -36,6 +40,7 @@ public class DocumentServiceImpl implements DocumentService {
         // Step 1: Preliminary validation based on project specs
         // Assuming docDTO.getFileContent() returns a byte array from a MultipartFile
         MultipartFile fileContent = docDTO.getFileContent();
+        log.info("file Content : {}", fileContent);
         // Checking if the file is empty
         if (fileContent.isEmpty()) {
             throw new FileValidationException("Cannot upload an empty file.");

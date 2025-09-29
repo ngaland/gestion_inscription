@@ -30,5 +30,9 @@ public class Notification {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "application_id")
+    private Application application;
+
     // Getters and Setters
 }

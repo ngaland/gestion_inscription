@@ -18,8 +18,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -39,15 +41,33 @@ public class ApplicationController {
     @PostMapping(value = "/submit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<ApplicationStatusResponseDto> submitApplication(
-            // Accepts multiple files and their associated metadata directly
-            @RequestPart("documents") List<DocumentUploadRequestDTO> documentsDTOs)
+            @RequestParam(value = "documentNames", required = false) List<String> documentNames,
+            @RequestParam(value = "documentTypes", required = false) List<String> documentTypes,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files)
             throws MessagingException, IOException {
 
-        // Get current authenticated user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUsername = authentication.getName();
 
-        // Create application using existing user profile
+        // Construire la liste des DocumentUploadRequestDTO à partir des paramètres
+        List<DocumentUploadRequestDTO> documentsDTOs = new ArrayList<>();
+
+        if (files != null && !files.isEmpty()) {
+            for (int i = 0; i < files.size(); i++) {
+                DocumentUploadRequestDTO dto = new DocumentUploadRequestDTO();
+                dto.setFileContent(files.get(i));
+
+                if (documentNames != null && i < documentNames.size()) {
+                    dto.setName(documentNames.get(i));
+                }
+                if (documentTypes != null && i < documentTypes.size()) {
+                    dto.setDocumentType(documentTypes.get(i));
+                }
+
+                documentsDTOs.add(dto);
+            }
+        }
+
         Application newApplication = applicationServiceImpl.createApplicationFromExistingUser(
                 currentUsername,
                 documentsDTOs

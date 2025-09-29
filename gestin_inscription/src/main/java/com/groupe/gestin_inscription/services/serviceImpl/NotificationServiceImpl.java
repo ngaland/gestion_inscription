@@ -1,5 +1,13 @@
 package com.groupe.gestin_inscription.services.serviceImpl;
 
+import com.groupe.gestin_inscription.model.Application;
+import com.groupe.gestin_inscription.model.Enums.NotificationStatus;
+import com.groupe.gestin_inscription.model.Enums.NotificationType;
+import com.groupe.gestin_inscription.model.Notification;
+import com.groupe.gestin_inscription.model.User;
+import com.groupe.gestin_inscription.repository.ApplicationRepository;
+import com.groupe.gestin_inscription.repository.NotificationRepository;
+import com.groupe.gestin_inscription.repository.UserRepository;
 import com.groupe.gestin_inscription.services.serviceInterfaces.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -13,6 +21,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
+import java.time.LocalDateTime;
+import java.util.NoSuchElementException;
+
 @Service
 public class NotificationServiceImpl implements NotificationService {
 
@@ -20,18 +31,57 @@ public class NotificationServiceImpl implements NotificationService {
     private JavaMailSender emailSender;
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+    @Autowired
+    private NotificationRepository notificationRepository;
+    @Autowired
+    private ApplicationRepository applicationRepository;
+    @Autowired
+    private UserRepository userRepository;
 
     // Uses the Email Service backend module
     @Override
-    public void sendEmailNotification(String recipient, String subject, String content) throws MessagingException {
-        MimeMessage message = emailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+    public void sendEmailNotification(String username, Long Id, String recipient, String subject, String content) throws MessagingException {
 
-        helper.setTo(recipient);
-        helper.setSubject(subject);
-        helper.setText(content, true); // `true` indicates HTML content
+        // Retrieve the related entities
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new NoSuchElementException("User not found: " + username));
+        Application application = applicationRepository.findById(Id)
+                .orElseThrow(() -> new NoSuchElementException("Application not found: " + Id));
 
-        emailSender.send(message);
+        Notification notification = new Notification();
+        notification.setUser(user);
+        notification.setApplication(application);
+        notification.setType(NotificationType.EMAIL); // Assuming you have a NotificationType enum
+        notification.setMessage(subject + ": " + content); // Combine subject and content
+        notification.setStatus(NotificationStatus.SENT); // Assuming a NotificationStatus enum
+        // You might also want to set a timestamp here
+
+        notificationRepository.save(notification);
+
+        try {
+            // 2. Transmit the Email
+            MimeMessage message = emailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setTo(recipient);
+            helper.setSubject(subject);
+            helper.setText(content, true);
+
+            emailSender.send(message);
+
+            // 3. Update Status on Success
+            notification.setStatus(NotificationStatus.SENT);
+
+        } catch (MessagingException e) {
+            // 4. Update Status on Failure
+            notification.setStatus(NotificationStatus.FAILED);
+            // Re-throw or log the error
+            throw e;
+
+        } finally {
+            // Ensure the final status is saved
+            notificationRepository.save(notification);
+        }
     }
 
     // Logic for sending SMS
@@ -48,6 +98,15 @@ public class NotificationServiceImpl implements NotificationService {
                         new PhoneNumber("+15017122661"), // Your Twilio phone number
                         message)
                 .create();
+
+        // 3. Persist the Notification Record (The Fix)
+        Notification notification = new Notification();
+        notification.setType(NotificationType.SMS);
+        notification.setMessage(message.substring(0, Math.min(message.length(), 255))); // Truncate message for storage
+        notification.setStatus(NotificationStatus.SENT);
+        // notification.setUser(retrievedUser); // Re-establish user relationship if possible
+
+        notificationRepository.save(notification);
     }
 
 
@@ -64,6 +123,15 @@ public class NotificationServiceImpl implements NotificationService {
         // This pattern allows a client to subscribe to their own notifications.
         String destination = "/topic/notifications/" + userId;
         messagingTemplate.convertAndSend(destination, message);
+
+        // Persist the Notification Record (The Fix)
+        Notification notification = new Notification();
+        notification.setType(NotificationType.IN_APP);
+        notification.setMessage(message.substring(0, Math.min(message.length(), 255)));
+        notification.setStatus(NotificationStatus.UNREAD); // Typically UNREAD for in-app
+        
+
+        notificationRepository.save(notification);
     }
 
 }

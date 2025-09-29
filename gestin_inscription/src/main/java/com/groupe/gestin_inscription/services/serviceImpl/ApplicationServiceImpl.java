@@ -76,9 +76,15 @@ public class ApplicationServiceImpl implements ApplicationService {
             documentService.uploadDocument(application.getId(), docDTO);
         }
 
+        // Reload the entity to ensure the 'documents' collection is fetched and populated by JPA
+        application = applicationRepository.findById(application.getId())
+                .orElseThrow(() -> new RuntimeException("Application not found after saving documents."));
+
         // 5. perform automatic pre-validation and notifications
         performPreValidation(application);
         notificationService.sendEmailNotification(
+                user.getUsername(), // Pass userId
+                application.getId(), // Pass applicationId
                 user.getEmail(),
                 "Candidature soumise",
                 "Votre candidature a été reçue et est en cours de traitement."
@@ -109,7 +115,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         // Step 4: Trigger automatic pre-validation and notifications.
         performPreValidation(application);
-        notificationService.sendEmailNotification(user.getEmail(), "Application Submitted", "Your application has been received.");
+        notificationService.sendEmailNotification(user.getUsername(), application.getId(), user.getEmail(), "Application Submitted", "Your application has been received.");
 
         return application;
     }
@@ -198,7 +204,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             application.setStatus(ApplicationStatus.REJECTED);
             applicationRepository.save(application);
             try {
-                notificationService.sendEmailNotification(application.getApplicantName().getEmail(), "Application Rejected", "Your application failed pre-validation.");
+                notificationService.sendEmailNotification(application.getApplicantName().getUsername(), application.getId(), application.getApplicantName().getEmail(), "Application Rejected", "Your application failed pre-validation.");
             } catch (MessagingException e) {
                 throw new RuntimeException(e);
             }
@@ -254,7 +260,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         applicationRepository.save(application);
 
         // Send multi-channel notifications
-        notificationService.sendEmailNotification(applicant.getEmail(), emailSubject, emailBody);
+        notificationService.sendEmailNotification(application.getApplicantName().getUsername(), application.getId(), applicant.getEmail(), emailSubject, emailBody);
         notificationService.sendSmsReminder(applicant.getPhoneNumber(), emailBody);
         notificationService.sendInAppNotification(applicant.getId(), emailBody);
     }
@@ -275,7 +281,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             application.setStatus(ApplicationStatus.PENDING_RECOURSE);
             applicationRepository.save(application);
             try {
-                notificationService.sendEmailNotification(application.getApplicantName()
+                notificationService.sendEmailNotification(application.getApplicantName().getUsername(), application.getId(), application.getApplicantName()
                         .getEmail(), "Prise de rendez-vous", "Prenez un rendez-vous virtuel avec l'administration.");
             } catch (MessagingException e) {
                 throw new RuntimeException(e);
