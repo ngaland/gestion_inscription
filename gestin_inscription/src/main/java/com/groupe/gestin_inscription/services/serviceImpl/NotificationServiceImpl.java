@@ -124,12 +124,16 @@ public class NotificationServiceImpl implements NotificationService {
         String destination = "/topic/notifications/" + userId;
         messagingTemplate.convertAndSend(destination, message);
 
+        //  Retrieve the User entity
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("User not found with ID: " + userId));
+
         // Persist the Notification Record (The Fix)
         Notification notification = new Notification();
         notification.setType(NotificationType.IN_APP);
         notification.setMessage(message.substring(0, Math.min(message.length(), 255)));
         notification.setStatus(NotificationStatus.UNREAD); // Typically UNREAD for in-app
-        
+        notification.setUser(user);
 
         notificationRepository.save(notification);
     }

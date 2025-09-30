@@ -1,11 +1,17 @@
 package com.groupe.gestin_inscription.controller;
 
 import com.groupe.gestin_inscription.dto.request.DocumentUploadRequestDTO;
+import com.groupe.gestin_inscription.dto.response.DocumentResponseDTO;
 import com.groupe.gestin_inscription.dto.request.RegistrationFormRequestDTO;
 import com.groupe.gestin_inscription.dto.response.ApplicationStatusResponseDto;
+import com.groupe.gestin_inscription.dto.response.NotificationResponseDTO;
 import com.groupe.gestin_inscription.model.Application;
+import com.groupe.gestin_inscription.model.Document;
 import com.groupe.gestin_inscription.model.Enums.ApplicationStatus;
+import com.groupe.gestin_inscription.model.Notification;
 import com.groupe.gestin_inscription.model.User;
+import com.groupe.gestin_inscription.repository.DocumentRepository;
+import com.groupe.gestin_inscription.repository.NotificationRepository;
 import com.groupe.gestin_inscription.security.Utils.ObjectLevelSecurity;
 import com.groupe.gestin_inscription.services.serviceImpl.ApplicationServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,6 +41,10 @@ public class ApplicationController {
     private ApplicationServiceImpl applicationServiceImpl;
     @Autowired
     private ObjectLevelSecurity objectLevelSecurity;
+    @Autowired
+    private DocumentRepository documentRepository;
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     // Endpoint for applicants to submit a new application using their existing profile
     @Operation(summary = "Submit a new application using existing user profile")
@@ -138,6 +148,20 @@ public class ApplicationController {
             dto.setUsername(applicant.getUsername());
             dto.setApplicantName(applicant.getFirstName() + " " + applicant.getLastName());
         }
+
+       // Populate documentsStatus
+        List<Document> documents = documentRepository.findByApplicationId(application.getId());
+        List<DocumentResponseDTO> docStatusList = documents.stream()
+                .map(DocumentResponseDTO::new)
+                .collect(Collectors.toList());
+        dto.setDocumentsStatus(docStatusList);
+
+        // Populate recentNotifications
+        List<Notification> notifications = notificationRepository.findTop5ByUserOrderByCreatedAtDesc(application.getApplicantName());
+        List<NotificationResponseDTO> notifList = notifications.stream()
+                .map(NotificationResponseDTO::new)
+                .collect(Collectors.toList());
+        dto.setRecentNotifications(notifList);
 
         return dto;
     }

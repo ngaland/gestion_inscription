@@ -6,6 +6,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Data
@@ -24,6 +27,9 @@ public class Notification {
 
     @Enumerated(EnumType.STRING)
     private NotificationStatus status;
+    @CreatedDate
+    private LocalDateTime createdAt;
+
 
     // Relationships
     @ManyToOne(fetch = FetchType.LAZY)

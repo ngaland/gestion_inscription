@@ -1,6 +1,7 @@
 package com.groupe.gestin_inscription.repository;
 
 import com.groupe.gestin_inscription.model.Notification;
+import com.groupe.gestin_inscription.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,4 +16,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
      * @return A list of notifications for the user.
      */
     List<Notification> findByUserId(Long userId);
+
+    List<Notification> findTop5ByUserOrderByCreatedAtDesc(User user);
+
 }
