@@ -234,6 +234,8 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     }
 
+
+
     // Agent's action to manually validate or reject a dossier
     @Transactional
     @Override
@@ -261,7 +263,7 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         // Send multi-channel notifications
         notificationService.sendEmailNotification(application.getApplicantName().getUsername(), application.getId(), applicant.getEmail(), emailSubject, emailBody);
-        notificationService.sendSmsReminder(applicant.getPhoneNumber(), emailBody);
+        //notificationService.sendSmsReminder(applicant.getPhoneNumber(), emailBody);
         notificationService.sendInAppNotification(applicant.getId(), emailBody);
     }
 

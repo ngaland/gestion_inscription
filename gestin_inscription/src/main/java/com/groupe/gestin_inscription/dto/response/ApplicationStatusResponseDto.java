@@ -20,5 +20,7 @@ public class ApplicationStatusResponseDto {
     private LocalDateTime submissionDate;
     private String ApplicantName;
     private String username;
+    private Long assignedAdminId;
+    private String assignedAdminUsername;
 
 }

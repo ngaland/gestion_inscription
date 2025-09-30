@@ -5,11 +5,8 @@ import com.groupe.gestin_inscription.dto.response.DocumentResponseDTO;
 import com.groupe.gestin_inscription.dto.request.RegistrationFormRequestDTO;
 import com.groupe.gestin_inscription.dto.response.ApplicationStatusResponseDto;
 import com.groupe.gestin_inscription.dto.response.NotificationResponseDTO;
-import com.groupe.gestin_inscription.model.Application;
-import com.groupe.gestin_inscription.model.Document;
+import com.groupe.gestin_inscription.model.*;
 import com.groupe.gestin_inscription.model.Enums.ApplicationStatus;
-import com.groupe.gestin_inscription.model.Notification;
-import com.groupe.gestin_inscription.model.User;
 import com.groupe.gestin_inscription.repository.DocumentRepository;
 import com.groupe.gestin_inscription.repository.NotificationRepository;
 import com.groupe.gestin_inscription.security.Utils.ObjectLevelSecurity;
@@ -112,10 +109,11 @@ public class ApplicationController {
         return ResponseEntity.ok(responseDtos);
     }
 
+
     // Endpoint for an agent to manually review an application
     @Operation(summary = "review an as assigned admin application")
     @PutMapping("/review/{applicationId}")
-    @PreAuthorize("hasAuthority('AGENT')")
+    @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<Void> reviewApplication(@PathVariable Long applicationId, @RequestParam("decision") String reviewDecision) {
         try {
             applicationServiceImpl.reviewDossier(applicationId, reviewDecision);
@@ -141,6 +139,17 @@ public class ApplicationController {
         dto.setStatus(application.getStatus().name());
         dto.setCompletionRate(application.getCompletionRate());
         dto.setSubmissionDate(application.getSubmissionDate());
+
+        Administrator assignedAdmin = application.getAssignedAdmin();
+        // Conditional assignment to prevent NullPointerException if no agent is assigned yet
+        if (assignedAdmin != null) {
+            dto.setAssignedAdminId(assignedAdmin.getId());
+            dto.setAssignedAdminUsername(assignedAdmin.getUserName());
+        } else {
+            // Explicitly set to null or a default value
+            dto.setAssignedAdminId(null);
+            dto.setAssignedAdminUsername("Not assigned");
+        }
 
         // Populate applicant information
         User applicant = application.getApplicantName();

@@ -12,5 +12,6 @@ public interface ApplicationService {
     public Application createApplication(RegistrationFormRequestDTO registrationFormRequestDTO, List<DocumentUploadRequestDTO> documents) throws MessagingException;
     public void performPreValidation(Application application);
     public void assignForManualReview(Application application);
+    //public void assignForManualReview(Long applicationId, Long administratorId);
     public void reviewDossier(Long applicationId, String reviewDecision) throws MessagingException;
 }
