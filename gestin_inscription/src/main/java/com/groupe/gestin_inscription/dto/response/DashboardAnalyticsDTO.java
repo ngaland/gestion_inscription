@@ -11,10 +11,23 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 public class DashboardAnalyticsDTO {
+    // 1. Total Counts
     private Long totalApplications;
-    private List pendingApplications;
-    private List approvedApplications;
-    private List rejectedApplications;
-    private Map<String, Integer> completionRateByStep;
+    private Long preValidationCount;
+    private Long approvedCount;
+    private Long rejectedCount;
+
+    // 2. Counts by Status (More detailed breakdown)
+    // Map<Status_Name, Count> e.g., {"PENDING_RECOURSE": 5, "MANUAL_REVIEW": 15}
+    private Map<String, Long> applicationsByStatus;
+
+    // 3. Completion rate by step (Assuming this is a separate metric)
+    // Map<Step_Name, Percentage_or_Count>
+    private Map<String, Long> completionRateByStep;
+
+    private Map<String, Long> registrationHeatmapData;
+
+
+
     // Getters and Setters
 }

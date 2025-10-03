@@ -1,6 +1,7 @@
 package com.groupe.gestin_inscription.model;
 
 
+import com.groupe.gestin_inscription.config.SensitiveDataConverter;
 import com.groupe.gestin_inscription.model.Enums.AdministratorRole;
 import com.groupe.gestin_inscription.model.Enums.Gender;
 import com.groupe.gestin_inscription.model.Enums.UserRole;
@@ -23,11 +24,17 @@ public class User {
     private Long id;
 
     // Personal Information
+    @Convert(converter = SensitiveDataConverter.class)
     private String firstName;
+
+    @Convert(converter = SensitiveDataConverter.class)
     private String lastName;
+
     @Column(nullable = false)
     private String password;
+
     @Column(unique = true, nullable = false)
+    @Convert(converter = SensitiveDataConverter.class)
     private String username;
 
     @Enumerated(EnumType.STRING)
@@ -42,7 +49,11 @@ public class User {
     @Column(name = "role")
     private UserRole role;
     private String email;
+
+    @Convert(converter = SensitiveDataConverter.class)
     private String phoneNumber;
+
+    @Convert(converter = SensitiveDataConverter.class)
     private String address;
 
     // Relationships

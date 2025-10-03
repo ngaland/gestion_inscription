@@ -14,6 +14,7 @@ import com.groupe.gestin_inscription.services.serviceImpl.ApplicationServiceImpl
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.mail.MessagingException;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -123,10 +124,41 @@ public class ApplicationController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Initiates a recourse process for a REJECTED application")
+    @PutMapping("/recourse/{applicationId}")
+    @PreAuthorize("hasRole('CANDIDATE')") // Only the applicant should initiate recourse
+    public ResponseEntity<Void> handleRecourse(
+            @PathVariable Long applicationId,
+            @RequestParam("type") String recourseType) {
+
+        // You should ideally verify that the application belongs to the current principal user.
+        // For now, we rely on the service logic and security setup.
+
+        try {
+            // Call the service method
+            applicationServiceImpl.handleRecourse(applicationId, recourseType);
+            return ResponseEntity.ok().build();
+        } catch (EntityNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            // Application not REJECTED
+            return ResponseEntity.status(403).build(); // 403 Forbidden/Conflict status
+        } catch (IllegalArgumentException e) {
+            // Invalid recourse type
+            return ResponseEntity.badRequest().build(); // 400 Bad Request
+        } catch (RuntimeException e) {
+            // Handle MessagingException wrapped in RuntimeException
+            if (e.getCause() instanceof MessagingException) {
+                // Log the error
+            }
+            throw e; // Or handle more gracefully
+        }
+    }
+
     // Endpoint for a super-admin to view all applications
     @Operation(summary = "Get a list of all applications for a Super Admin")
     @GetMapping("/all")
-    @PreAuthorize("hasAuthority('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<List<ApplicationStatusResponseDto>> getAllApplications() {
         List<Application> applications = applicationServiceImpl.getAllApplications();
         return ResponseEntity.ok(applications.stream().map(this::convertToDto).collect(Collectors.toList()));

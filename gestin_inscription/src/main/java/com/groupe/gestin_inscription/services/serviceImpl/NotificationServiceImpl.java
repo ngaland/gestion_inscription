@@ -1,6 +1,7 @@
 package com.groupe.gestin_inscription.services.serviceImpl;
 
 import com.groupe.gestin_inscription.model.Application;
+import com.groupe.gestin_inscription.model.Enums.ApplicationStatus;
 import com.groupe.gestin_inscription.model.Enums.NotificationStatus;
 import com.groupe.gestin_inscription.model.Enums.NotificationType;
 import com.groupe.gestin_inscription.model.Notification;
@@ -12,6 +13,7 @@ import com.groupe.gestin_inscription.services.serviceInterfaces.NotificationServ
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import com.twilio.Twilio;
 import com.twilio.rest.api.v2010.account.Message;
@@ -22,6 +24,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
@@ -136,6 +139,38 @@ public class NotificationServiceImpl implements NotificationService {
         notification.setUser(user);
 
         notificationRepository.save(notification);
+    }
+
+    @Scheduled(cron = "0 0 10 * * *")
+    public void sendIncompleteApplicationReminders() {
+
+        // Defining what constitutes "incomplete" (e.g., status is DRAFT or PRE_VALIDATION for > 3 days)
+        LocalDateTime threeDaysAgo = LocalDateTime.now().minusDays(3);
+        applicationRepository.findIncompleteApplicationsOlderThan(ApplicationStatus.PRE_VALIDATION ,threeDaysAgo);
+
+        List<Application> incompleteApps = applicationRepository.findIncompleteApplicationsOlderThan(
+                ApplicationStatus.PRE_VALIDATION, //target applications that are still waiting for review only
+                threeDaysAgo
+        );
+
+        for (Application app : incompleteApps) {
+            User applicant = app.getApplicantName();
+            try {
+                // Send sms reminder
+               // sendSmsReminder(applicant.getPhoneNumber(),
+                 //   "Reminder: Your application is incomplete. Please log in to complete it.");
+
+                // Send email reminder too
+                sendEmailNotification(applicant.getUsername(), app.getId(),
+                    applicant.getEmail(), "Rappel: Candidature Incomplète",
+                    "Votre dossier est en attente de complétion. Merci de vous connecter.");
+
+            } catch (MessagingException e) {
+                System.err.println("Failed to send reminder to " + applicant.getEmail() + ": " + e.getMessage());
+            }
+        }
+
+        System.out.println("Scheduler check for incomplete applications executed at: " + LocalDateTime.now());
     }
 
 }

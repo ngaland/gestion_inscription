@@ -100,7 +100,7 @@ public class DocumentServiceImpl implements DocumentService {
                 break;
             case "Acte de naissance":
                 // Detect watermarks
-                if (!documentManagerService.detectWatermark(document.getFilePath())) {
+                if (!documentManagerService.detectWatermark(document.getFilePath(), document.getFileType())) {
                     return false;
                 }
                 break;

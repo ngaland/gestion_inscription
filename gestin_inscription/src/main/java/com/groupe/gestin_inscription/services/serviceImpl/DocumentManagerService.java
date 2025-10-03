@@ -27,8 +27,6 @@ import net.sourceforge.tess4j.TesseractException;
 import boofcv.io.image.ConvertBufferedImage;
 import boofcv.io.image.UtilImageIO;
 import boofcv.alg.filter.binary.GThresholdImageOps;
-import boofcv.alg.filter.binary.ThresholdImageOps;
-import boofcv.alg.misc.ImageMiscOps;
 import boofcv.struct.image.GrayU8;
 
 import javax.imageio.ImageIO;
@@ -137,10 +135,12 @@ public class DocumentManagerService {
 
     /**
      * Detects watermarks on documents like birth certificates ("Acte de naissance").
-     * @param filePath The path to the document file.
+     *
+     * @param filePath     The path to the document file.
+     * @param fileType
      * @return True if a watermark is detected, false otherwise.
      */
-    public boolean detectWatermark(String filePath) {
+    public boolean detectWatermark(String filePath, String fileType) {
         // Step 1: Read the image file from the specified path
         BufferedImage originalImage;
         originalImage = UtilImageIO.loadImage(String.valueOf(new File(filePath)));
@@ -177,11 +177,26 @@ public class DocumentManagerService {
         // This is a simple heuristic; more complex logic might be needed for a robust solution.
         // If the number of white pixels exceeds a certain percentage of the total image area,
         // it's likely a watermark.
+//        double totalPixels = grayImage.width * grayImage.height;
+//        double watermarkPercentage = (double) whitePixelCount / totalPixels;
+//        double watermarkThreshold = 0.05; // 5% of the image area
+//        System.out.println("White pixel percentage: " + (watermarkPercentage * 100) + "%");
+        // Step 6: Define a HEURISTIC using document type
+        double watermarkThreshold = 0.05; // Default to 5%
+
+        // Use a switch or if/else structure to set the threshold dynamically
+        if ("Acte de naissance".equalsIgnoreCase(fileType)) {
+            // Birth certificates often have a clear, large seal/watermark, requiring a lower threshold.
+            watermarkThreshold = 0.02; // Only 2% coverage needed to confirm presence.
+        } else if ("Diplôme".equalsIgnoreCase(fileType)) {
+            // Diplomas might have a protective pattern, requiring a higher threshold.
+            watermarkThreshold = 0.08;
+        }
+
+
+        // Step 7: Final calculation
         double totalPixels = grayImage.width * grayImage.height;
         double watermarkPercentage = (double) whitePixelCount / totalPixels;
-        double watermarkThreshold = 0.05; // 5% of the image area
-
-        System.out.println("White pixel percentage: " + (watermarkPercentage * 100) + "%");
 
         if (watermarkPercentage > watermarkThreshold) {
             System.out.println("Watermark detected.");
@@ -258,6 +273,7 @@ public class DocumentManagerService {
      * @param filePath The path to the new document file.
      * @return true if a similar document is found, false otherwise.
      */
+
     public boolean checkForSimilarity(String filePath) {
         // Step 1: Generate the hash for the new document
         String newDocumentHash = generateFileHash(filePath);
@@ -276,12 +292,9 @@ public class DocumentManagerService {
         return isDuplicate;
     }
 
-    /**
-     * Helper method to generate a SHA-256 hash of a file.
-     *
-     * @param filePath The path to the file.
-     * @return The hexadecimal string representation of the hash, or null on failure.
-     */
+
+     //Helper method to generate a SHA-256 hash of a file.
+
     private String generateFileHash(String filePath) {
         try (FileInputStream fis = new FileInputStream(filePath)) {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

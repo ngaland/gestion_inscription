@@ -57,6 +57,7 @@ public class AuthController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            System.err.println("Authentication Failed: " + e.getClass().getName() + " - " + e.getMessage());
             Map<String, String> error = new HashMap<>();
             error.put("error", "Invalid credentials");
             return ResponseEntity.badRequest().body(error);

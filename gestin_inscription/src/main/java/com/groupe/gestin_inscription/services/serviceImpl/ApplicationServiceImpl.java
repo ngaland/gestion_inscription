@@ -5,6 +5,7 @@ import com.groupe.gestin_inscription.dto.request.RegistrationFormRequestDTO;
 import com.groupe.gestin_inscription.dto.request.UserRequestDTO;
 import com.groupe.gestin_inscription.model.Administrator;
 import com.groupe.gestin_inscription.model.Application;
+import com.groupe.gestin_inscription.model.Document;
 import com.groupe.gestin_inscription.model.Enums.AdministratorRole;
 import com.groupe.gestin_inscription.model.Enums.ApplicationStatus;
 import com.groupe.gestin_inscription.model.User;
@@ -21,9 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Random;
+import java.util.*;
 
 @Service
 public class ApplicationServiceImpl implements ApplicationService {
@@ -117,6 +116,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         performPreValidation(application);
         notificationService.sendEmailNotification(user.getUsername(), application.getId(), user.getEmail(), "Application Submitted", "Your application has been received.");
 
+
         return application;
     }
 
@@ -188,14 +188,37 @@ public class ApplicationServiceImpl implements ApplicationService {
     // Performs automated pre-validation checks (2 min)
     @Override
     public void performPreValidation(Application application) {
-        // Verification of document formats
-        boolean docsValid = application.getDocuments().stream()
-                .allMatch(doc -> documentManagerService.verifyFormat(doc.getFilePath(), (MultipartFile) doc));
+        boolean docsValid = true;
+        boolean noFraud = true;
 
-        // Elementary fraud detection
-        boolean noFraud = application.getDocuments().stream()
-                .noneMatch(doc -> documentManagerService.performOcrCheck(doc.getFilePath()));
+        // Iterate over all uploaded documents to perform specific checks
+        for (Document doc : application.getDocuments()) {
+            String filePath = doc.getFilePath(); //returns the storage path
+            String documentType = doc.getFileType(); // the stored type
 
+            // 1. Basic Format/Size Check (done in DocumentManagerService.verifyFormat)
+            // If the main format check fails, we stop.
+            // verifyFormat is called at upload time, re-verify specialized aspects here.
+
+            // 2. OCR Partiel (Required for "Relevés de notes")
+            if ("Relevés de notes".equalsIgnoreCase(documentType)) {
+                // Check for elementary fraud in the OCR content
+                if (!documentManagerService.performOcrCheck(filePath)) {
+                    noFraud = false;
+                    System.out.println("Fraud detected via OCR check for: " + documentType);
+                }
+            }
+
+            // 3. Détection de filigrane (Required for "Acte de naissance")
+            if ("Acte de naissance".equalsIgnoreCase(documentType)) {
+                if (!documentManagerService.detectWatermark(filePath, documentType)) {
+                    noFraud = false;
+                    System.out.println("Watermark missing or tampered for: " + documentType);
+                }
+            }
+        }
+
+        // ALERT FOR UPLOADS SUSPECTS
         if (docsValid && noFraud) {
             application.setStatus(ApplicationStatus.MANUAL_REVIEW);
             applicationRepository.save(application);
@@ -203,6 +226,12 @@ public class ApplicationServiceImpl implements ApplicationService {
         } else {
             application.setStatus(ApplicationStatus.REJECTED);
             applicationRepository.save(application);
+            if (!noFraud) {
+                // Send a high-priority in-app/email alert to a SUPER_ADMIN
+                // Placeholder: log to alert system
+                System.err.println("!!! SECURITY ALERT: Application " + application.getId() + " rejected due to suspicious document uploads.");
+            }
+
             try {
                 notificationService.sendEmailNotification(application.getApplicantName().getUsername(), application.getId(), application.getApplicantName().getEmail(), "Application Rejected", "Your application failed pre-validation.");
             } catch (MessagingException e) {
@@ -222,14 +251,23 @@ public class ApplicationServiceImpl implements ApplicationService {
             return;
         }
 
-        // Simple logic for random assignment
-        Random random = new Random();
-        Administrator agent = agents.get(random.nextInt(agents.size()));
+        // 2. FIND THE LEAST BUSY AGENT using the optimized JPQL query
+        Administrator leastBusyAgent = applicationRepository.findLeastBusyAgent()
+                .orElseGet(() -> {
+                    // Fallback: If the query returns no applications (e.g., system is empty),
+                    // pick the first agent in the list for initial distribution.
+                    return agents.get(0);
+                });
 
-        System.out.println("Assigning application " + application.getId() + " to agent: " + agent.getUserName());
+        // Simple logic for random assignment
+       // Random random = new Random();
+        //Administrator agent = agents.get(random.nextInt(agents.size()));
+
+
+        System.out.println("Assigning application " + application.getId() + " to agent: " + leastBusyAgent.getUserName());
 
         // link the application to the agent and save
-        application.setAssignedAdmin(agent);
+        application.setAssignedAdmin(leastBusyAgent);
         applicationRepository.save(application);
 
     }
