@@ -63,4 +63,8 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
             @Param("status") ApplicationStatus status,
             @Param("cutoffDate") LocalDateTime cutoffDate);
 
+
+    @Query("SELECT a FROM Application a LEFT JOIN FETCH a.documents WHERE a.id = :id")
+    Optional<Application> findByIdWithDocuments(@Param("id") Long id);
+
 }

@@ -60,6 +60,10 @@ public class ApplicationController {
         // Construire la liste des DocumentUploadRequestDTO à partir des paramètres
         List<DocumentUploadRequestDTO> documentsDTOs = new ArrayList<>();
 
+        System.out.println("Files received: " + (files != null ? files.size() : "null"));
+        System.out.println("Document names: " + documentNames);
+        System.out.println("Document types: " + documentTypes);
+
         if (files != null && !files.isEmpty()) {
             for (int i = 0; i < files.size(); i++) {
                 DocumentUploadRequestDTO dto = new DocumentUploadRequestDTO();
@@ -75,6 +79,8 @@ public class ApplicationController {
                 documentsDTOs.add(dto);
             }
         }
+
+        System.out.println("Total DTOs created: " + documentsDTOs.size());
 
         Application newApplication = applicationServiceImpl.createApplicationFromExistingUser(
                 currentUsername,

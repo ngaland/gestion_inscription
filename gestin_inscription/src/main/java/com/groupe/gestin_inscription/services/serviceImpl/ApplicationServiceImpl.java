@@ -67,17 +67,31 @@ public class ApplicationServiceImpl implements ApplicationService {
         application.setSubmissionDate(LocalDateTime.now());
         application.setStatus(ApplicationStatus.PRE_VALIDATION);
 
-        // Save the application
-        application = applicationRepository.save(application);
+        // Save the application AND FLUSH to database immediately
+        application = applicationRepository.saveAndFlush(application);
 
-        // 4. manage uploaded documents
+        System.out.println("=== createApplicationFromExistingUser ===");
+        System.out.println("Documents received: " + (documents != null ? documents.size() : "null"));
+
+//        // 4. manage uploaded documents
+//        for (DocumentUploadRequestDTO docDTO : documents) {
+//            documentService.uploadDocument(application.getId(), docDTO);
+//        }
+//
+//        // Reload the entity to ensure the 'documents' collection is fetched and populated by JPA
+//        application = applicationRepository.findById(application.getId())
+//                .orElseThrow(() -> new RuntimeException("Application not found after saving documents."));
+
+        // 4. manage uploaded documents - NOW the application ID exists in DB
         for (DocumentUploadRequestDTO docDTO : documents) {
-            documentService.uploadDocument(application.getId(), docDTO);
+            try {
+                Document savedDoc = documentService.uploadDocument(application.getId(), docDTO);
+                System.out.println("Document saved with ID: " + savedDoc.getId());
+            } catch (Exception e) {
+                System.err.println("Error uploading document: " + e.getMessage());
+                throw e;
+            }
         }
-
-        // Reload the entity to ensure the 'documents' collection is fetched and populated by JPA
-        application = applicationRepository.findById(application.getId())
-                .orElseThrow(() -> new RuntimeException("Application not found after saving documents."));
 
         // 5. perform automatic pre-validation and notifications
         performPreValidation(application);
@@ -93,6 +107,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     // Creates a new application from user data and documents
+    @Transactional
     @Override
     public Application createApplication(RegistrationFormRequestDTO registrationForm, List<DocumentUploadRequestDTO> documents) throws MessagingException {
         // Step 1: Find the existing user by username.

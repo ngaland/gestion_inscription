@@ -11,6 +11,7 @@ import com.groupe.gestin_inscription.repository.NotificationRepository;
 import com.groupe.gestin_inscription.repository.UserRepository;
 import com.groupe.gestin_inscription.services.serviceInterfaces.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -90,11 +91,13 @@ public class NotificationServiceImpl implements NotificationService {
     // Logic for sending SMS
     @Override
     public void sendSmsReminder(String phoneNumber, String message) {
+
         // Your Twilio Account SID and Auth Token
         String ACCOUNT_SID = System.getenv("TWILIO_ACCOUNT_SID");
         String AUTH_TOKEN = System.getenv("TWILIO_AUTH_TOKEN");
-
         Twilio.init(ACCOUNT_SID, AUTH_TOKEN);
+
+
 
         Message.creator(
                         new PhoneNumber(phoneNumber),
@@ -102,12 +105,21 @@ public class NotificationServiceImpl implements NotificationService {
                         message)
                 .create();
 
+
+        // Finding the User by phone number (New logic)
+        User retrievedUser = userRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new NoSuchElementException("User not found with phoneNumber: " + phoneNumber));
+
         // 3. Persist the Notification Record (The Fix)
         Notification notification = new Notification();
         notification.setType(NotificationType.SMS);
-        notification.setMessage(message.substring(0, Math.min(message.length(), 255))); // Truncate message for storage
+        notification.setMessage(message.substring(0, Math.min(message.length(), 255)));
         notification.setStatus(NotificationStatus.SENT);
-        // notification.setUser(retrievedUser); // Re-establish user relationship if possible
+
+        // Link the user if found
+        if (retrievedUser != null) {
+            notification.setUser(retrievedUser);
+        }
 
         notificationRepository.save(notification);
     }
