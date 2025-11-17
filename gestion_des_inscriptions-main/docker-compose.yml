@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Base de données PostgreSQL
+  database:
+    image: postgres:15-alpine
+    container_name: sigec-db
+    environment:
+      POSTGRES_DB: gestion_inscription2
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - sigec-network
+
+  # Backend Spring Boot
+  backend:
+    build: .
+    container_name: sigec-backend
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_URL=jdbc:postgresql://database:5432/gestion_inscription2
+      - DB_USERNAME=${DB_USERNAME:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - JWT_SECRET=${JWT_SECRET}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-super-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-adminpass}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - FRONTEND_URL=http://localhost:4200
+    ports:
+      - "8086:8086"
+    depends_on:
+      - database
+    networks:
+      - sigec-network
+    volumes:
+      - app_storage:/var/sigec/secure-storage
+
+  # Frontend Angular
+  frontend:
+    build: ./frontendGI
+    container_name: sigec-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - sigec-network
+
+volumes:
+  postgres_data:
+  app_storage:
+
+networks:
+  sigec-network:
+    driver: bridge

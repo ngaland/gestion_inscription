@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  # Base de données pour développement
+  database:
+    image: postgres:15-alpine
+    container_name: sigec-db-dev
+    environment:
+      POSTGRES_DB: gestion_inscription2
+      POSTGRES_USER: ${DB_USERNAME:-hels}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-hels}
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - sigec-network-dev
+
+volumes:
+  postgres_data_dev:
+
+networks:
+  sigec-network-dev:
+    driver: bridge
